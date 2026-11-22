@@ -8,18 +8,18 @@
 | Field | Value |
 |---|---|
 | **Student Name** | Alisha Izhar |
-| **Roll Number** | 70XXXXXX *(Update to your exact roll number if needed)* |
+| **Roll Number** | 70176134 |
 | **Section** | A |
-| **GitHub Repository** | `https://github.com/alishaizhar/AI101-ML-Assignment-70XXXXXX` |
+| **GitHub Repository** | `https://github.com/alishaizhar/AI101-ML-Assignment-70176134` |
 
 ---
 
 ## Attempted Graded Tasks (One per Pool)
-| Pool | Modality | Task ID & Title | Executed Notebook | 2-Page IEEE Report |
+| Pool | Modality | Task ID & Title | Executed Notebook | 2-Page IEEE Reports |
 |---|---|---|---|---|
-| **Pool A** | Numerical | **Task A2: Predicting Concrete Compressive Strength** | [`A2_Concrete_Strength/A2_notebook.ipynb`](A2_Concrete_Strength/A2_notebook.ipynb) | [`A2_Concrete_Strength/report/70XXXXXX_A2_Report.pdf`](A2_Concrete_Strength/report/70XXXXXX_A2_Report.pdf) |
-| **Pool B** | Mixed (Text + Structured) | **Task B3: Predicting Star Ratings of Clothing Reviews** | [`B3_Clothing_Reviews/B3_notebook.ipynb`](B3_Clothing_Reviews/B3_notebook.ipynb) | [`B3_Clothing_Reviews/report/70XXXXXX_B3_Report.pdf`](B3_Clothing_Reviews/report/70XXXXXX_B3_Report.pdf) |
-| **Pool C** | Sequence-to-Sequence | **Task C2: Abstractive Summarisation of BBC News (XSum)** | [`C2_XSum_Summarisation/C2_notebook.ipynb`](C2_XSum_Summarisation/C2_notebook.ipynb) | [`C2_XSum_Summarisation/report/70XXXXXX_C2_Report.pdf`](C2_XSum_Summarisation/report/70XXXXXX_C2_Report.pdf) |
+| **Pool A** | Numerical | **Task A2: Predicting Concrete Compressive Strength** | [`A2_Concrete_Strength/A2_notebook.ipynb`](A2_Concrete_Strength/A2_notebook.ipynb) | [`70176134_A2_Report.pdf`](A2_Concrete_Strength/report/70176134_A2_Report.pdf) / [`alisha_70176134_A2_Report.pdf`](A2_Concrete_Strength/report/alisha_70176134_A2_Report.pdf) |
+| **Pool B** | Mixed (Text + Structured) | **Task B3: Predicting Star Ratings of Clothing Reviews** | [`B3_Clothing_Reviews/B3_notebook.ipynb`](B3_Clothing_Reviews/B3_notebook.ipynb) | [`70176134_B3_Report.pdf`](B3_Clothing_Reviews/report/70176134_B3_Report.pdf) / [`alisha_70176134_B3_Report.pdf`](B3_Clothing_Reviews/report/alisha_70176134_B3_Report.pdf) |
+| **Pool C** | Sequence-to-Sequence | **Task C2: Abstractive Summarisation of BBC News (XSum)** | [`C2_XSum_Summarisation/C2_notebook.ipynb`](C2_XSum_Summarisation/C2_notebook.ipynb) | [`70176134_C2_Report.pdf`](C2_XSum_Summarisation/report/70176134_C2_Report.pdf) / [`alisha_70176134_C2_Report.pdf`](C2_XSum_Summarisation/report/alisha_70176134_C2_Report.pdf) |
 
 **Bonus Tasks:** None (Focusing on 3 complete, high-precision graded tasks).
 
@@ -49,8 +49,8 @@
 ### 1. Environment Installation
 Ensure Python 3.11+ is installed. Clone the repository and install dependencies:
 ```bash
-git clone https://github.com/alishaizhar/AI101-ML-Assignment-70XXXXXX.git
-cd AI101-ML-Assignment-70XXXXXX
+git clone https://github.com/alishaizhar/AI101-ML-Assignment-70176134.git
+cd AI101-ML-Assignment-70176134
 pip install -r requirements.txt
 ```
 
