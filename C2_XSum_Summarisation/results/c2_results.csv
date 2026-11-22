@@ -1,0 +1,4 @@
+,rouge1,rouge2,rougeL,avg_len
+Lead-1,16.32,3.18,13.04,24.8
+GRU+attention (mine),18.75,3.92,14.86,18.2
+t5-small fine-tuned,37.42,14.85,29.6,21.6
