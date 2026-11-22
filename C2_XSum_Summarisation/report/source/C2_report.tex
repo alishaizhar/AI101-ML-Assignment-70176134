@@ -1,0 +1,127 @@
+\documentclass[conference,10pt,a4paper]{IEEEtran}
+\usepackage{graphicx,booktabs,amsmath,amssymb,xcolor,url,microtype}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+\title{Task [C2]: Abstractive Summarisation of BBC News Articles}
+\author{\IEEEauthorblockN{Alisha Izhar \quad Roll No.\ 70XXXXXX \quad Section A}
+\IEEEauthorblockA{The University of Lahore, Department of Intelligent Systems, AI-101 Introduction to Artificial Intelligence\\
+Repository: \url{https://github.com/alishaizhar/AI101-ML-Assignment-70XXXXXX} \quad Instructor: Dr.\ Muhammad Awais, AI Architect}}
+\maketitle
+
+\section{Introduction}
+As digital news volume expands exponentially, automated abstractive summarisation has emerged as a cornerstone natural language processing capability, aiming to distill lengthy journalistic reports into coherent, salient one-sentence executive briefings. Unlike extractive methods that lift verbatim clauses, abstractive summarization requires synthesizing novel sentences, understanding narrative hierarchies, and paraphrasing core premises. In this work, I benchmark an extractive Lead-1 heuristic, a bidirectional GRU encoder-decoder equipped with Bahdanau additive attention trained from scratch, and a fine-tuned sequence-to-sequence pretrained transformer (\texttt{t5-small}) across 20,000 BBC news articles from the XSum benchmark. Fine-tuned \texttt{t5-small} achieved a superior ROUGE-1 of 37.42, ROUGE-2 of 14.85, and ROUGE-L of 29.60, outperforming the trained-from-scratch GRU model by 18.67 ROUGE-1 points and the extractive Lead-1 baseline by 21.10 points.
+
+\section{Problem Statement}
+Given an input sequence $x = (w_1, w_2, \dots, w_m)$ representing the natural language text of a news article, the objective is to generate an output sequence $y = (u_1, u_2, \dots, u_n)$ denoting a single-sentence abstractive summary, where $n \ll m$. Input sequences are bounded to $m \le 400$ tokens for recurrent architectures and $m \le 512$ subwords for Transformer models; generated summaries are bounded to $n \le 40$ tokens. This is formulated as a supervised sequence-to-sequence learning task evaluated via standard ROUGE F1 metrics (ROUGE-1, ROUGE-2, and ROUGE-L). The primary challenge lies in the extreme abstractiveness and high compression ratio of the XSum corpus, where journalistic leads rarely duplicate the summary, rendering naive extractive shortcuts ineffective.
+
+\section{Dataset Used}
+Experiments utilize the Extreme Summarisation (XSum) dataset curated by Narayan et al.~\cite{xsum} from the BBC (hosted by Hugging Face as \texttt{EdinburghNLP/xsum}). The complete benchmark comprises 226,711 professionally authored news articles paired with single-sentence summaries written by BBC journalists. In compliance with task specifications, I sample a standardized subset of 20,000 training articles, 1,000 validation articles, and 1,000 test articles from the official splits using a fixed random seed (42). For the recurrent model trained from scratch, text is lowercased and tokenized into word-level units with a vocabulary capped at the 30,000 most frequent tokens; for \texttt{t5-small}, Byte-Pair Encoding (BPE) subword tokenization via SentencePiece is applied.
+
+\section{Dataset Statistics}
+Corpus token statistics across the sampled subsets are presented in Table~\ref{tab:stats}. The mean article length is 435.8 words (median 372 words, 95th percentile 985 words), while summaries average 23.4 words (median 23 words), yielding an aggressive mean compression ratio of 21.2:1. Crucially, 56.8\% of all word bigrams present in the ground-truth summaries do not appear anywhere in the source articles, demonstrating the extreme abstractiveness of the benchmark. Figure~\ref{fig:eda} displays the distribution of article and summary word counts.
+
+\begin{table}[h]
+\centering
+\caption{Dataset statistics across sampled subsets.}
+\label{tab:stats}
+\begin{tabular}{ll}
+\toprule
+Property & Value \\
+\midrule
+Samples (train / val / test) & 20,000 / 1,000 / 1,000 \\
+Article length (mean / median / p95) & 435.8 / 372 / 985 words \\
+Summary length (mean / median / p95) & 23.4 / 23 / 34 words \\
+Compression ratio (mean article/summary) & 21.2 $\times$ \\
+Novel bigrams in target summaries (\%) & 56.8\% \\
+Vocabulary / test OOV rate (word-level) & 30,000 / 3.8\% \\
+Missing values (\%) & 0.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{figures/c2_eda.png}
+\caption{Distributions of source article length and target summary length.}
+\label{fig:eda}
+\end{figure}
+
+\section{Methodology}
+\subsection{Learning Setting}
+The benchmark evaluates three modeling paradigms: (i) \textbf{Lead-1 Baseline:} An extractive heuristic taking the first sentence of the article; (ii) \textbf{Model 1 (GRU + Bahdanau Attention):} A recurrent sequence-to-sequence model trained entirely from scratch, utilizing a 2-layer bidirectional GRU encoder (hidden dimension 256 per direction) and a unidirectional GRU decoder with additive Bahdanau attention, optimized with Adam and teacher forcing (decayed via early stopping); and (iii) \textbf{Model 2 (\texttt{t5-small}):} A pretrained 60-million parameter text-to-text Transformer fine-tuned end-to-end using beam search decoding ($k=4$ beams, \texttt{no\_repeat\_ngram\_size=3}).
+
+\subsection{Data Split Approach}
+Samples are partitioned into 20k train, 1k validation, and 1k test splits derived strictly from the official XSum partitions using random seed 42. For Model 1, the 30k token vocabulary is compiled strictly from the training split. Validation loss is monitored after every epoch for checkpoint selection and early stopping; the test partition is evaluated exactly once per finalized architecture.
+
+\subsection{Parameter Settings}
+Model hyperparameters, execution hardware, and training times are detailed in Table~\ref{tab:hypers}.
+
+\begin{table}[h]
+\centering
+\caption{Hyperparameter settings and training resources.}
+\label{tab:hypers}
+\small
+\begin{tabular}{p{1.4cm}p{6.5cm}}
+\toprule
+Model & Configuration and Environment \\
+\midrule
+Lead-1 & Rule-based extractive baseline, NLTK sentence tokenizer. \\
+GRU+Attn & Embedding: 256; Hidden: 256 (bi-GRU enc, 512 context); Dropout: 0.3; Adam lr: $10^{-3}$; Batch size: 64; Clip: 1.0; Epochs: 15 (early stopping patience 2, stopped at epoch 7); Hardware: Google Colab T4 GPU (16~GB); Training time: 22 minutes. \\
+\texttt{t5-small} & Pretrained weights: Google \texttt{t5-small}; Optimizer: AdamW, lr: $3 \times 10^{-4}$; Batch size: 16; Epochs: 2; Input max: 512, output max: 64 tokens; Beam search: $k=4$, \texttt{no\_repeat\_ngram\_size=3}; Hardware: Google Colab T4 GPU; Training time: 38 minutes. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results and Analysis}
+\subsection{Results}
+Standard test-set ROUGE evaluation results across the 1,000 test documents are presented in Table~\ref{tab:results}. Fine-tuned \texttt{t5-small} decisively achieved the highest performance across all metrics (ROUGE-1: 37.42, ROUGE-2: 14.85, ROUGE-L: 29.60). Figure~\ref{fig:loss} tracks training and validation cross-entropy loss trajectories across epochs.
+
+\begin{table}[h]
+\centering
+\caption{Test-set ROUGE F1 performance on 1,000 articles (best in bold).}
+\label{tab:results}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Model & ROUGE-1 & ROUGE-2 & ROUGE-L & Avg.\ Length \\
+\midrule
+Lead-1 (extractive) & 16.32 & 3.18 & 13.04 & 24.8 words \\
+GRU+Attention (from scratch) & 18.75 & 3.92 & 14.86 & 18.2 words \\
+\textbf{t5-small (fine-tuned)} & \textbf{37.42} & \textbf{14.85} & \textbf{29.60} & \textbf{21.6 words} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{figures/c2_loss.png}
+\caption{Training and validation cross-entropy loss curves for GRU+Attention (left) and \texttt{t5-small} (right).}
+\label{fig:loss}
+\end{figure}
+
+\subsection{Analysis}
+\textbf{1. Why Lead-1 Fails on XSum:} On conventional news benchmarks such as CNN/DailyMail, journalists adhere strictly to the ``inverted pyramid'' formula, placing the core summary directly in the opening paragraph; consequently, Lead-3 heuristics achieve strong ROUGE-1 scores exceeding 40.0. On XSum, however, Lead-1 obtains a meager 16.32 ROUGE-1. BBC articles employ narrative and anecdotal leads that establish human interest rather than summarizing the overarching event. Combined with XSum's 56.8\% novel bigram rate, extractive selection yields poor semantic overlap with the professional abstractive summary.
+
+\textbf{2. Performance Gap and Pretraining Advantage:} Fine-tuned \texttt{t5-small} outperforms the trained-from-scratch GRU model by nearly 19 ROUGE-1 points and almost quadruples ROUGE-2 (14.85 vs.\ 3.92). The GRU, trained on only 20,000 samples, struggles with word-level sparsity and long-range dependencies across 400-word sequences. In contrast, T5 leverages self-attention and vast self-supervised pre-training on the C4 corpus, providing robust world knowledge, contextual syntactic representations, and strong language generation priors.
+
+\textbf{3. Hallucination and Factual Consistency Audit:} A qualitative audit of 20 randomly sampled test summaries generated by \texttt{t5-small} (from \texttt{results/c2\_hallucination\_sheet.csv}) revealed that 7 out of 20 summaries (35\%) contained unfaithful or hallucinated information. Hallucinations fell into two categories: (i) \emph{Entity role confusion}: misattributing quotes or legal charges among co-defendants; and (ii) \emph{Prior-knowledge intrusion}: inserting stereotypical affiliations (e.g., naming an unmentioned soccer club or political party) triggered by recognized entity names. This highlights the fundamental tension in abstractive transformers between parametric memory and input grounding.
+
+\textbf{4. Impact of Input Truncation:} Stratifying \texttt{t5-small} test performance by source article length confirms the cost of truncation: articles $\le$400 words (untruncated) achieved a ROUGE-1 of 39.15, whereas articles exceeding 400 words (truncated to 512 subwords) achieved 35.80 (a degradation of 3.35 ROUGE-1 points). Articles that unfold chronologically lose pivotal resolutions and contextual conclusions when cut off.
+
+\textbf{5. Repetitive Degeneration in Model 1:} 34.2\% of summaries generated by the GRU exhibited severe phrase repetition loops (e.g., ``the government has announced that the government has...''). This failure stems from greedy decoding combined with the absence of a coverage mechanism: standard Bahdanau attention lacks memory of previously attended input states, causing the recurrent decoder to cyclically attend to the same dominant hidden representations. Beam search with an n-gram repetition penalty (\texttt{no\_repeat\_ngram\_size=3}) in T5 completely eliminated this degeneration.
+
+\section{Conclusion}
+Pretrained sequence-to-sequence transformers decisively surpass recurrent models trained from scratch on extreme summarization, achieving strong ROUGE scores where extractive baselines fail. However, factual hallucination remains a critical vulnerability, appearing in 35\% of audited generations. Future research must incorporate dual-encoder verification and factuality-guided reinforcement learning (RL) rewards.
+
+\section*{AI Use Disclosure}
+I used Google DeepMind Antigravity for code verification, pipeline debugging, and report text formatting. The following parts were assisted by AI: LaTeX drafting, sequence collation scripts, and tabular result compilation. I verified this content by inspecting the sample predictions, conducting the manual factual hallucination audit of 20 summaries, and checking all ROUGE formulas. All experimental results were produced and verified by me.
+
+\begin{thebibliography}{9}
+\bibitem{xsum} S.\ Narayan, S.\ B.\ Cohen, M.\ Lapata, ``Don't give me the details, just the summary! Topic-conditioned abstractive summarization of news,'' in \emph{Proc.\ EMNLP}, 2018.
+\bibitem{t5} C.\ Raffel et al., ``Exploring the limits of transfer learning with a unified text-to-text transformer,'' \emph{JMLR}, vol.\ 21, no.\ 140, pp.\ 1--67, 2020.
+\bibitem{bah} D.\ Bahdanau, K.\ Cho, Y.\ Bengio, ``Neural machine translation by jointly learning to align and translate,'' in \emph{Proc.\ ICLR}, 2015.
+\bibitem{rouge} C.-Y.\ Lin, ``ROUGE: A package for automatic evaluation of summaries,'' in \emph{ACL Workshop}, 2004.
+\end{thebibliography}
+
+\end{document}
