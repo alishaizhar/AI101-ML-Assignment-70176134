@@ -1,0 +1,151 @@
+\documentclass[conference,10pt,a4paper]{IEEEtran}
+\usepackage{graphicx,booktabs,amsmath,amssymb,xcolor,url,microtype}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+\title{Task [B3]: Predicting Star Ratings of E-Commerce Clothing Reviews}
+\author{\IEEEauthorblockN{Alisha Izhar \quad Roll No.\ 70XXXXXX \quad Section A}
+\IEEEauthorblockA{The University of Lahore, Department of Intelligent Systems, AI-101 Introduction to Artificial Intelligence\\
+Repository: \url{https://github.com/alishaizhar/AI101-ML-Assignment-70XXXXXX} \quad Instructor: Dr.\ Muhammad Awais, AI Architect}}
+\maketitle
+
+\section{Introduction}
+Customer sentiment is vital for retail intelligence, allowing e-commerce platforms to automatically detect dissatisfied buyers, triage merchandise defects, and impute star ratings when numerical scores are omitted. This paper investigates ordinal star rating prediction (1--5 stars) on the Women's E-Commerce Clothing Reviews dataset using mixed tabular and free-text inputs. I systematically benchmark multinomial logistic regression, linear support vector machines, and random forest classifiers across uniform and cost-sensitive class weightings, alongside comprehensive ablation and 3-class sentiment re-framing. Multinomial logistic regression with inverse class weighting achieved a test macro-F1 of 0.484 (weighted-F1 0.643, ordinal MAE 0.450), while ablation proved that natural language review text overwhelmingly drives predictive accuracy, with metadata offering negligible marginal utility.
+
+\section{Problem Statement}
+Given an input instance $x = (t, u, c)$ comprising combined title and review text $t$, numerical features $u \in \mathbb{R}^3$ (customer age, review length in words, and $\log(1 + \text{positive feedback count})$), and categorical attributes $c$ (retail division, department, and garment class), the objective is to predict the integer rating $y \in \{1, 2, 3, 4, 5\}$. This is a 5-class ordinal classification task characterized by extreme class imbalance, where 55.4\% of instances belong to class 5 and only 3.6\% belong to class 1. The primary evaluation metric is macro-averaged F1-score to penalize majority-class bias, supplemented by accuracy, weighted-F1, per-class recall, and ordinal Mean Absolute Error ($\text{MAE} = \frac{1}{N}\sum |y_i - \hat{y}_i|$). 
+\textbf{Target Leakage Constraint:} The feature \texttt{Recommended IND} is strictly excluded from all models. Customers select this recommendation indicator simultaneously with the numerical star rating on the review submission form; utilizing it would constitute catastrophic target leakage, as it would never be available at genuine inference time.
+
+\section{Dataset Used}
+Experiments utilize the Women's E-Commerce Clothing Reviews dataset curated by Nicapotato~\cite{ds} from Kaggle (23,486 raw entries across 10 features). Data preprocessing entailed: (i) pruning 845 records lacking review text or containing whitespace-only text, retaining 22,641 clean reviews; (ii) concatenating review titles and bodies to retain headline sentiment; (iii) imputing 14 missing entries in categorical columns with a dedicated ``Missing'' token; (iv) computing text length and $\log$-transforming positive feedback counts; and (v) constructing a unified \texttt{ColumnTransformer} featuring TF-IDF extraction (uni- and bi-grams, sublinear term frequency, minimum document frequency 3, vocabulary capped at 20,000 tokens), median imputation with standard scaling for numerical features, and one-hot encoding for categorical categories.
+
+\section{Dataset Statistics}
+Dataset descriptive metrics are summarized in Table~\ref{tab:stats}. The target distribution exhibits severe positive skew: 5-star ratings represent 55.4\% of samples, 4-star 21.7\%, 3-star 12.5\%, 2-star 6.8\%, and 1-star 3.6\%. Figure~\ref{fig:eda} highlights this distribution alongside review length boxplots across rating tiers, showing that dissatisfied customers write slightly longer, highly detailed explanations (mean 65.5--67.7 words for ratings 2--3 vs.\ 60.7 words for rating 5).
+
+\begin{table}[h]
+\centering
+\caption{Dataset statistics.}
+\label{tab:stats}
+\begin{tabular}{ll}
+\toprule
+Property & Value \\
+\midrule
+Samples (after cleaning) & 22,641 (23,486 raw, 845 empty text dropped) \\
+Features (numeric / categorical / text) & 3 / 3 / 1 (TF-IDF uni- and bi-grams) \\
+Target: classes & 1, 2, 3, 4, 5 (ordinal) \\
+Class distribution (\%) & 3.6\% / 6.8\% / 12.5\% / 21.7\% / 55.4\% \\
+Missing values (\%) & Review text: 3.6\% (dropped); Categories: 0.06\% \\
+Text length (mean / median) & 63.2 words / 62 words \\
+Vocabulary size (TF-IDF) & 14,679 unique terms \\
+Train / validation / test & 15,848 / 3,396 / 3,397 (stratified 70/15/15) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{figures/b3_eda.png}
+\caption{Rating frequency distribution (left) and review word-count across ratings (right).}
+\label{fig:eda}
+\end{figure}
+
+\section{Methodology}
+\subsection{Learning Setting}
+I examine three supervised classification families: (i) Multinomial Logistic Regression as an interpretable linear baseline; (ii) Linear Support Vector Classifier (\texttt{LinearSVC}) optimizing one-vs-rest hinge loss; and (iii) Random Forest Classifier with 300 estimators and leaf size 2. To counter majority-class dominance, each model is trained under both unweighted (\texttt{class\_weight=None}) and cost-sensitive inverse class frequency weighting (\texttt{class\_weight='balanced'}). Mandatory ablations evaluate structured-only, text-only, and combined feature representations. Finally, I evaluate a business-centric 3-class reformulation.
+
+\subsection{Data Split Approach}
+The cleaned corpus (22,641 reviews) is partitioned using a stratified 70/15/15 ratio into training ($n=15,848$), validation ($n=3,396$), and test ($n=3,397$) splits with a fixed random seed (42). To strictly prevent cross-split leakage, all TF-IDF vectorizers, median imputers, and standard scalers are embedded within scikit-learn \texttt{Pipeline} objects and fitted exclusively on training instances. Hyperparameters ($C$) are tuned on the validation split; final evaluations occur once on the sequestered test set.
+
+\subsection{Parameter Settings}
+Grid search specifications and optimal parameters selected via validation macro-F1 are presented in Table~\ref{tab:hypers}.
+
+\begin{table}[h]
+\centering
+\caption{Hyperparameter search space and selected settings.}
+\label{tab:hypers}
+\small
+\begin{tabular}{p{1.6cm}p{3.5cm}p{2.2cm}}
+\toprule
+Model & Search Space & Selected Configuration \\
+\midrule
+Logistic Reg. & $C \in \{0.1, 1, 10\}$; weight $\in \{\text{None}, \text{balanced}\}$ & $C=1.0$, balanced \\
+Linear SVM & $C \in \{0.05, 0.5, 5\}$; weight $\in \{\text{None}, \text{balanced}\}$ & $C=0.05$, balanced \\
+Random Forest & 300 trees, leaf 2; weight $\in \{\text{None}, \text{balanced}\}$ & 300 trees, balanced \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results and Analysis}
+\subsection{Results}
+Test-set metrics across all models and class-weighting configurations are detailed in Table~\ref{tab:results}. Balanced Logistic Regression achieved the highest test macro-F1 (0.484), with 0.634 accuracy and 0.450 ordinal MAE. Table~\ref{tab:ablation} presents the feature ablation study. Figure~\ref{fig:cm} illustrates the test confusion matrix for the optimal model.
+
+\begin{table}[h]
+\centering
+\caption{Test-set performance across models and weighting schemes.}
+\label{tab:results}
+\small
+\begin{tabular}{llcccc}
+\toprule
+Model & Class Weight & Acc. & Macro-F1 & Weighted-F1 & Ord.\ MAE \\
+\midrule
+LogReg & None & 0.647 & 0.451 & 0.631 & 0.437 \\
+\textbf{LogReg} & \textbf{balanced} & \textbf{0.634} & \textbf{0.484} & \textbf{0.643} & \textbf{0.450} \\
+LinSVM & None & 0.649 & 0.429 & 0.623 & 0.447 \\
+LinSVM & balanced & 0.654 & 0.478 & 0.638 & 0.434 \\
+Random Forest & None & 0.581 & 0.211 & 0.459 & 0.713 \\
+Random Forest & balanced & 0.628 & 0.457 & 0.617 & 0.468 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Ablation study on test set (best model: balanced LogReg).}
+\label{tab:ablation}
+\small
+\begin{tabular}{lcccc}
+\toprule
+Feature Representation & Acc. & Macro-F1 & Weighted-F1 & Ord.\ MAE \\
+\midrule
+Structured Only & 0.279 & 0.201 & 0.319 & 1.476 \\
+Text Only & 0.635 & 0.486 & 0.644 & 0.446 \\
+Combined (Text + Struct) & 0.634 & 0.484 & 0.643 & 0.450 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.72\columnwidth]{figures/b3_confusion.png}
+\caption{Confusion matrix of the optimal balanced Logistic Regression model.}
+\label{fig:cm}
+\end{figure}
+
+\subsection{Analysis}
+\textbf{1. Confusion Pattern and Label Subjectivity:} The confusion matrix (Figure~\ref{fig:cm}) reveals that the overwhelming majority of errors occur strictly between adjacent rating tiers. The top five confused pairs by count are: (True 5, Pred 4) with 338 cases; (True 4, Pred 5) with 216 cases; (True 4, Pred 3) with 117 cases; (True 2, Pred 3) with 96 cases; and (True 3, Pred 4) with 90 cases. Gross classification errors (gap $\ge 2$) are exceptionally rare; the overall ordinal MAE is only 0.450 stars, demonstrating that predictions deviate by less than half a star on average. The heavy confusion between 4 and 5 stars reflects genuine semantic ambiguity in consumer labeling rather than algorithmic failure: phrases like ``love this dress, fit is slightly long'' are arbitrarily assigned 4 stars by one buyer and 5 stars by another.
+
+\textbf{2. Class Weighting vs.\ Majority-Class Dominance:} Under unweighted training, Random Forest achieved an accuracy of 58.1\% but a catastrophic macro-F1 of only 0.211, recalling 0.0\% of 1-star and 0.4\% of 2-star reviews while assigning 99.5\% of predictions to the majority class. Applying inverse class weighting penalizes minority errors, elevating Random Forest macro-F1 to 0.457 and Logistic Regression to 0.484 (recalling 47.2\% of 1-star and 31.5\% of 2-star samples) with virtually no degradation in overall accuracy (64.7\% to 63.4\%).
+
+\textbf{3. Feature Modality Ablation:} The ablation results in Table~\ref{tab:ablation} demonstrate that structured metadata alone is virtually incapable of predicting customer satisfaction, obtaining a poor macro-F1 of 0.201 and ordinal MAE of 1.476. Customer age and product categories do not inherently dictate satisfaction. Text alone attains 0.486 macro-F1, matching the combined model (0.484). Hence, predictive intelligence resides almost entirely within natural language expression.
+
+\textbf{4. Business Re-framing (3-Class):} Re-framing the problem into a 3-class sentiment framework (Negative: 1--2, Neutral: 3, Positive: 4--5) increases test accuracy to 82.0\%, macro-F1 to 0.656, and drops ordinal MAE to 0.204. For commercial operations, this framing is significantly more actionable, aligning with Net Promoter Score (NPS) workflows to route detractors for customer service intervention while avoiding the arbitrary noise between 4- and 5-star reviews.
+
+\textbf{5. Error Analysis on Extreme Residuals:} Inspection of misclassified cases with maximum error gap ($|y - \hat{y}| = 4$, from \texttt{results/b3\_misclassified.csv}) illuminates three distinct phenomena:
+\begin{enumerate}
+\item \emph{Color/Website Dissatisfaction with Product Love} (True 5, Pred 1): ``Unexpected color... disappointed when it arrived blue... at any rate, I like this skirt a lot as a casual everyday piece...'' The strong negative tokens (``disappointed'', ``unreliable'') triggered a 1-star prediction, though the buyer retained high satisfaction with the garment itself.
+\item \emph{Defect Complaints despite Aesthetic Adoration} (True 5, Pred 1): ``Gorgeous, but... everything was itchy... buttons oddly placed... pop off... coat is stunning...'' Severe criticism of sizing and hardware overwhelmed the global 5-star appraisal.
+\item \emph{Severe Sizing Failure with Reluctant Return} (True 5, Pred 1): ``Beautiful... absolutely gorgeous... massive... mourn that I had to take it back to the store.'' The negative logistic weights assigned to return terminology obscured the positive aesthetic praise.
+\end{enumerate}
+
+\section{Conclusion}
+Textual review sentiment decisively drives star rating classification, while structured demographic and categorical attributes provide virtually zero additional utility. Cost-sensitive weighting is essential to prevent minority-class erasure in heavily skewed customer data. Re-framing 5-star ratings into a 3-tier sentiment schema resolves inherent boundary ambiguity and delivers superior operational reliability (82.0\% accuracy, 0.656 macro-F1). Future extensions should incorporate fine-tuned pre-trained transformers (such as RoBERTa) and ordinal loss formulations.
+
+\section*{AI Use Disclosure}
+I used Google DeepMind Antigravity for code verification, pipeline debugging, and report text structure. The following parts were assisted by AI: LaTeX drafting, ColumnTransformer pipeline structure, and tabular result formatting. I verified this content by executing the Jupyter notebook locally, inspecting all confusion matrices and misclassified examples, and verifying metrics against the dataset. All experimental results were produced and verified by me.
+
+\begin{thebibliography}{9}
+\bibitem{ds} Nicapotato, ``Women's E-Commerce Clothing Reviews,'' Kaggle Dataset, 2018. \url{https://www.kaggle.com/datasets/nicapotato/womens-ecommerce-clothing-reviews}
+\bibitem{sk} F.\ Pedregosa et al., ``Scikit-learn: Machine learning in Python,'' \emph{JMLR}, vol.\ 12, pp.\ 2825--2830, 2011.
+\end{thebibliography}
+
+\end{document}
