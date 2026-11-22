@@ -1,0 +1,42 @@
+{
+  "base/linear": {},
+  "base/poly_ridge": {
+    "poly__degree": "3",
+    "ridge__alpha": "10"
+  },
+  "base/rf": {
+    "max_depth": "20",
+    "min_samples_leaf": "1",
+    "n_estimators": "200"
+  },
+  "base/gbr": {
+    "learning_rate": "0.05",
+    "max_depth": "4",
+    "n_estimators": "500"
+  },
+  "base/mlp": {
+    "mlp__alpha": "0.0001",
+    "mlp__hidden_layer_sizes": "(128, 64)",
+    "mlp__learning_rate_init": "0.01"
+  },
+  "engineered/linear": {},
+  "engineered/poly_ridge": {
+    "poly__degree": "3",
+    "ridge__alpha": "10"
+  },
+  "engineered/rf": {
+    "max_depth": "None",
+    "min_samples_leaf": "1",
+    "n_estimators": "500"
+  },
+  "engineered/gbr": {
+    "learning_rate": "0.05",
+    "max_depth": "4",
+    "n_estimators": "500"
+  },
+  "engineered/mlp": {
+    "mlp__alpha": "0.01",
+    "mlp__hidden_layer_sizes": "(128, 64)",
+    "mlp__learning_rate_init": "0.001"
+  }
+}
