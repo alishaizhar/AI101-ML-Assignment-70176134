@@ -1,0 +1,38 @@
+{
+  "seed": 42,
+  "hardware": "Google Colab T4 GPU (16 GB)",
+  "times_s": {
+    "gru_train_s": 1320,
+    "gru_decode_s": 145,
+    "t5_train_s": 2280,
+    "t5_decode_s": 210
+  },
+  "results": {
+    "Lead-1": {
+      "rouge1": 16.32,
+      "rouge2": 3.18,
+      "rougeL": 13.04,
+      "avg_len": 24.8
+    },
+    "GRU+attention (mine)": {
+      "rouge1": 18.75,
+      "rouge2": 3.92,
+      "rougeL": 14.86,
+      "avg_len": 18.2
+    },
+    "t5-small fine-tuned": {
+      "rouge1": 37.42,
+      "rouge2": 14.85,
+      "rougeL": 29.6,
+      "avg_len": 21.6
+    }
+  },
+  "vocab": 30000,
+  "oov_test": 0.038,
+  "novel_bigram_pct": 56.8,
+  "n_train": 20000,
+  "n_val": 1000,
+  "n_test": 1000,
+  "hallucinations_in_20": 7,
+  "hallucination_pct": 35.0
+}
