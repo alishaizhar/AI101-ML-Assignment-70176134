@@ -1,0 +1,12 @@
+data/*
+!data/README.md
+*.pt
+*.h5
+*.pkl
+ckpt/
+venv/
+__pycache__/
+.ipynb_checkpoints/
+*.aux
+*.log
+*.out
