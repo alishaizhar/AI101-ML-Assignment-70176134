@@ -1,0 +1,126 @@
+\documentclass[conference,10pt,a4paper]{IEEEtran}
+\usepackage{graphicx,booktabs,amsmath,amssymb,xcolor,url,microtype}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+\title{Task [A2]: Predicting Concrete Compressive Strength}
+\author{\IEEEauthorblockN{Alisha Izhar \quad Roll No.\ 70XXXXXX \quad Section A}
+\IEEEauthorblockA{The University of Lahore, Department of Intelligent Systems, AI-101 Introduction to Artificial Intelligence\\
+Repository: \url{https://github.com/alishaizhar/AI101-ML-Assignment-70XXXXXX} \quad Instructor: Dr.\ Muhammad Awais, AI Architect}}
+\maketitle
+
+\section{Introduction}
+Concrete is the bedrock of modern civil infrastructure, yet standard quality assurance requires casting specimen cylinders and waiting up to 28 days for chemical curing in water baths before performing destructive compressive fracture tests. Reliable computational estimation of concrete compressive strength directly from raw mix designs enables civil engineers to optimize binder formulations, minimize excessive clinker usage, reduce embodied carbon dioxide emissions, and dramatically compress project schedules. In this investigation, I systematically benchmark baseline Ordinary Least Squares (OLS), polynomial Ridge regression, random forest, gradient boosted regression trees, and a multi-layer perceptron across both raw mix proportions and domain-engineered physical features on the benchmark UCI Concrete dataset. Gradient boosting with engineered features attained an RMSE of 4.29~MPa, representing a 61.6\% error reduction over the raw linear regression baseline.
+
+\section{Problem Statement}
+Given an input vector $x \in \mathbb{R}^d$ denoting the concrete constituent proportions and curing duration, the objective is to learn a mapping $f: x \mapsto y$ where $y \in \mathbb{R}$ represents the compressive strength measured in megapascals (MPa). The base input dimensionality is $d=8$, consisting of cement, blast-furnace slag, fly ash, water, superplasticizer, coarse aggregate, fine aggregate (all quantified in $\text{kg/m}^3$), and curing age in days; feature engineering expands the representation to $d=10$ by incorporating the water-to-cement ratio ($w/c$) and $\log(\text{age})$. This task is structured as a supervised continuous regression problem evaluated primarily via Root Mean Squared Error (RMSE), supplemented by Mean Absolute Error (MAE) and the coefficient of determination ($R^2$). The primary engineering challenges stem from the severe non-linearity of chemical hydration kinetics (exponential early strength gain that asymptotes over time), complex chemical interactions between water, cementitious binders, and superplasticizers, and the constraint of working with a modest sample size of approximately 1,000 specimens.
+
+\section{Dataset Used}
+Experiments utilize the Concrete Compressive Strength dataset curated by I-Cheng Yeh~\cite{ds}, hosted on the UCI Machine Learning Repository (ID 165, released under CC BY 4.0). The dataset contains 1,030 lab-tested concrete batches with eight numerical batch features and a scalar compressive strength target. Inspection revealed 0 missing entries and 25 exact duplicate records originating from identical batch replications; these duplicate rows were pruned to eliminate cross-split data leakage, leaving 1,005 clean unique samples. Two domain-guided physical features were synthesized: the dimensionless water-to-cement ratio ($w/c = \text{water}/\text{cement}$), directly grounded in Abrams' Law of concrete porosity, and $\log(\text{age})$, which linearizes the asymptotic hydration curve over curing time.
+
+\section{Dataset Statistics}
+Summary characteristics of the cleaned dataset are reported in Table~\ref{tab:stats}. The curing age distribution exhibits extreme positive skewness (3.25), spanning from 1 to 365 days with a median of 28 days. Compressive strength spans from 2.33 to 82.60~MPa with mean $35.25 \pm 16.28$~MPa. Figure~\ref{fig:eda} displays the non-linear relationship of compressive strength against curing age on a logarithmic scale alongside the strong inverse relationship against the water-to-cement ratio.
+
+\begin{table}[h]
+\centering
+\caption{Dataset statistics.}
+\label{tab:stats}
+\begin{tabular}{ll}
+\toprule
+Property & Value \\
+\midrule
+Samples (after cleaning) & 1,005 (1,030 raw, 25 duplicates dropped) \\
+Features (numeric / categorical / text) & 8 / 0 / 0 (+2 engineered: $w/c$, $\log(\text{age})$) \\
+Target range & 2.33 -- 82.60~MPa \\
+Target mean $\pm$ sd & 35.25 $\pm$ 16.28~MPa \\
+Missing values (\%) & 0.0\% \\
+Train / validation / test & 804 / 5-fold CV / 201 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{figures/a2_eda.png}
+\caption{Compressive strength against age ($\log$ scale) and water/cement ratio.}
+\label{fig:eda}
+\end{figure}
+
+\section{Methodology}
+\subsection{Learning Setting}
+This task is formulated as a supervised regression benchmark comparing five model families: (i) Ordinary Least Squares Linear Regression as a standard baseline; (ii) Polynomial Feature Expansion with Ridge Regularization to model quadratic/cubic interactions and combat multicollinearity; (iii) Random Forest Regressor to capture non-linear feature interactions via bootstrap aggregation; (iv) Gradient Boosting Regressor (GBR) to iteratively minimize squared error residuals; and (v) Multi-Layer Perceptron (MLPRegressor) with ReLU activations and early stopping. Each algorithm is evaluated on both raw 8-feature inputs and 10-feature engineered representations.
+
+\subsection{Data Split Approach}
+The cleaned dataset of 1,005 samples is partitioned into an 80\% training split ($n=804$) and a 20\% test split ($n=201$) using a fixed random seed (42). To strictly guarantee zero data leakage, all data scalers (\texttt{StandardScaler}) and polynomial transformations (\texttt{PolynomialFeatures}) are encapsulated within scikit-learn \texttt{Pipeline} objects, fitted exclusively on the training folds. Hyperparameter optimization is conducted via 5-fold cross-validation on the training split only. The test set is sequestered and evaluated exactly once per finalized pipeline.
+
+\subsection{Parameter Settings}
+Grid search ranges and optimal hyperparameter values chosen via 5-fold cross-validation RMSE are summarized in Table~\ref{tab:hypers}.
+
+\begin{table}[h]
+\centering
+\caption{Hyperparameter search space and selected settings.}
+\label{tab:hypers}
+\small
+\begin{tabular}{p{1.4cm}p{3.7cm}p{2.3cm}}
+\toprule
+Model & Search Space & Selected Configuration \\
+\midrule
+Linear & None (closed-form OLS) & Default \\
+Poly+Ridge & degree $\in \{2, 3\}$, $\alpha \in \{0.01, \dots, 100\}$ & degree = 3, $\alpha = 10.0$ \\
+Random Forest & trees $\{200, 500\}$, depth $\{\text{None}, 10, 20\}$, min leaf $\{1, 2\}$ & trees = 500, depth = None, leaf = 1 \\
+Grad.\ Boost & trees $\{200, 500\}$, lr $\{0.05, 0.1\}$, depth $\{2, 3, 4\}$ & trees = 500, lr = 0.05, depth = 4 \\
+MLP & hidden $\{(64, 64), (128, 64)\}$, $\alpha \in \{10^{-4}, 10^{-2}\}$, lr $\{10^{-3}, 10^{-2}\}$ & hidden = (128, 64), $\alpha = 0.01$, lr = 0.001 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Results and Analysis}
+\subsection{Results}
+Test-set evaluation metrics for all models trained on engineered features are compiled in Table~\ref{tab:results}, alongside baseline feature RMSE for direct ablation comparison. Gradient Boosting Regressor achieved superior performance across all criteria, recording a test RMSE of 4.29~MPa, MAE of 2.83~MPa, and $R^2$ of 0.938. Figure~\ref{fig:pred_resid} depicts predicted vs.\ actual strength and residual scatter for the optimal GBR pipeline.
+
+\begin{table}[h]
+\centering
+\caption{Test-set evaluation results with engineered features (best in bold). Base-feature RMSE displayed for direct comparison.}
+\label{tab:results}
+\small
+\begin{tabular}{lccccc}
+\toprule
+Model & CV RMSE & MAE & RMSE & $R^2$ & RMSE (base) \\
+\midrule
+Linear & 6.85 $\pm$ 0.18 & 5.77 & 7.45 & 0.814 & 11.19 \\
+Poly+Ridge & 5.45 $\pm$ 0.50 & 3.83 & 5.49 & 0.899 & 6.95 \\
+Random Forest & 5.15 $\pm$ 0.33 & 3.35 & 4.86 & 0.921 & 5.20 \\
+\textbf{Grad.\ Boost} & \textbf{4.47 $\pm$ 0.33} & \textbf{2.83} & \textbf{4.29} & \textbf{0.938} & \textbf{4.39} \\
+MLP & 5.38 $\pm$ 0.33 & 3.40 & 4.86 & 0.921 & 5.99 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{figures/a2_pred_resid.png}
+\caption{Best model (Gradient Boosting): predicted vs.\ actual strength (left) and test residual distribution (right).}
+\label{fig:pred_resid}
+\end{figure}
+
+\subsection{Analysis}
+\textbf{1. Baseline Under-performance and Violated Assumptions:} Ordinary Least Squares assumes linear additivity ($y = X\beta + \epsilon$) and homoscedastic residual variance. In concrete chemistry, this assumption is severely violated: cement hydration proceeds rapidly during early curing (days 1–28) and asymptotically plateaus thereafter, while water and cement exhibit multiplicative non-linear interaction governed by Abrams' rule ($f_c \propto A / B^{w/c}$). As visible in the baseline residual diagnostics (\texttt{figures/a2\_linear\_resid.png}), raw linear regression produces severe structured residuals and poor test metrics (RMSE 11.19~MPa, $R^2 = 0.580$). Transforming age via $\log(\text{age})$ and injecting $w/c$ linearizes this dynamic, slashing linear test RMSE by 33.4\% to 7.45~MPa ($R^2 = 0.814$).
+
+\textbf{2. Impact of Feature Engineering across Architectures:} Feature engineering benefited every model family, but gains were asymmetric. Parametric models that cannot synthesize arbitrary nonlinear splits exhibited drastic reductions in test RMSE: Linear Regression dropped from 11.19 to 7.45~MPa (-33.4\%), Poly+Ridge dropped from 6.95 to 5.49~MPa (-21.0\%), and MLP dropped from 5.99 to 4.86~MPa (-18.9\%). Conversely, tree ensembles (RF: 5.20 to 4.86~MPa; GBR: 4.39 to 4.29~MPa) experienced more modest improvements because axis-aligned decision trees can already piecewise approximate threshold interactions on raw features. Nonetheless, $w/c$ provided trees with a smooth continuous gradient of compaction that discrete orthogonal splits cannot easily recreate.
+
+\textbf{3. Error Distribution and Physical Feature Importance:} Stratifying test MAE across curing durations reveals that the largest prediction errors occur in early and intermediate curing phases: MAE is 3.47~MPa for 8--28 day samples and 2.79~MPa for $\le$7 day samples, compared to only 2.12~MPa for 29--90 days and 1.60~MPa for mature concrete (>90 days). Early hydration kinetics exhibit high variance due to delicate exothermic crystallization sensitive to batching conditions. Feature importance extraction from the best GBR model confirms engineering theory: $w/c$ ratio dominates with 36.6\% relative importance, followed by age (18.7\%) and $\log(\text{age})$ (16.9\%), blast furnace slag (8.1\%), superplasticizer (4.6\%), and cement (4.3\%). This validates that the water-to-cement ratio is the paramount governing parameter for matrix porosity and mechanical resistance, far exceeding raw ingredient weights.
+
+\textbf{4. Limitations:} Limitations include dataset scale (1,005 unique samples), potential batch bias from laboratory-controlled aggregate quality, and reliance on a single fixed 80/20 test split.
+
+\section{Conclusion}
+Non-linear tree ensembles and neural networks dramatically outperform traditional linear baselines in predicting concrete compressive strength. Integrating domain-grounded physical features ($w/c$ ratio and $\log(\text{age})$) systematically reduced prediction error across all architectures, with Gradient Boosted Trees reaching a test RMSE of 4.29~MPa ($R^2 = 0.938$). Future work should explore physics-informed neural networks (PINNs) and field test validation on diverse aggregate sources.
+
+\section*{AI Use Disclosure}
+I used Google DeepMind Antigravity for code verification, pipeline debugging, and report text structure. The following parts were assisted by AI: LaTeX drafting, hyperparameter search scripts, and tabular result compilation. I verified this content by executing the Jupyter notebook, cross-checking all metrics against generated outputs, and validating formulas against civil engineering literature. All experimental results were produced and verified by me.
+
+\begin{thebibliography}{9}
+\bibitem{ds} I-C.\ Yeh, ``Modeling of strength of high-performance concrete using artificial neural networks,'' \emph{Cement and Concrete Research}, vol.\ 28, no.\ 12, pp.\ 1797--1808, 1998. \url{https://archive.ics.uci.edu/dataset/165}
+\bibitem{sk} F.\ Pedregosa et al., ``Scikit-learn: Machine learning in Python,'' \emph{JMLR}, vol.\ 12, pp.\ 2825--2830, 2011.
+\end{thebibliography}
+
+\end{document}
